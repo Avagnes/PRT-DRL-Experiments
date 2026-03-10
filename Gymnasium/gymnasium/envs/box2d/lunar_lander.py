@@ -392,13 +392,19 @@ class LunarLander(gym.Env, EzPickle):
         self.lander.color2 = (77, 77, 128)
 
         # Apply the initial random impulse to the lander
-        self.lander.ApplyForceToCenter(
-            (
-                self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
-                self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
-            ),
-            True,
-        )
+        if type(options) is dict and 'force' in options:
+            forces = (float(options['force'][0]), float(options['force'][1]))
+            self.lander.ApplyForceToCenter(
+                forces,
+                True,
+            )
+        else:
+            forces = (self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
+                      self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM))
+            self.lander.ApplyForceToCenter(
+                forces,
+                True,
+            )
 
         if self.enable_wind:  # Initialize wind pattern based on index
             self.wind_idx = self.np_random.integers(-9999, 9999)
@@ -446,7 +452,7 @@ class LunarLander(gym.Env, EzPickle):
 
         if self.render_mode == "human":
             self.render()
-        return self.step(np.array([0, 0]) if self.continuous else 0)[0], {}
+        return self.step(np.array([0, 0]) if self.continuous else 0)[0], {'test_case': forces}
 
     def _create_particle(self, mass, x, y, ttl):
         p = self.world.CreateDynamicBody(
@@ -654,9 +660,11 @@ class LunarLander(gym.Env, EzPickle):
         reward -= s_power * 0.03
 
         terminated = False
+        info = {'crash': False}
         if self.game_over or abs(state[0]) >= 1.0:
             terminated = True
             reward = -100
+            info['crash'] = True
         if not self.lander.awake:
             terminated = True
             reward = +100
@@ -664,7 +672,7 @@ class LunarLander(gym.Env, EzPickle):
         if self.render_mode == "human":
             self.render()
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
-        return np.array(state, dtype=np.float32), reward, terminated, False, {}
+        return np.array(state, dtype=np.float32), reward, terminated, False, info
 
     def render(self):
         if self.render_mode is None:

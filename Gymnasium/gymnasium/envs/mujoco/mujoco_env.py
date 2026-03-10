@@ -1,4 +1,5 @@
 from os import path
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -40,15 +41,15 @@ class MujocoEnv(gym.Env):
         self,
         model_path: str,
         frame_skip: int,
-        observation_space: Space | None,
-        render_mode: str | None = None,
+        observation_space: Optional[Space],
+        render_mode: Optional[str] = None,
         width: int = DEFAULT_SIZE,
         height: int = DEFAULT_SIZE,
-        camera_id: int | None = None,
-        camera_name: str | None = None,
-        default_camera_config: dict[str, float | int] | None = None,
+        camera_id: Optional[int] = None,
+        camera_name: Optional[str] = None,
+        default_camera_config: Optional[Dict[str, Union[float, int]]] = None,
         max_geom: int = 1000,
-        visual_options: dict[int, bool] = {},
+        visual_options: Dict[int, bool] = {},
     ):
         """Base abstract class for mujoco based environments.
 
@@ -81,6 +82,12 @@ class MujocoEnv(gym.Env):
 
         self.frame_skip = frame_skip
 
+        assert self.metadata["render_modes"] == [
+            "human",
+            "rgb_array",
+            "depth_array",
+            "rgbd_tuple",
+        ], self.metadata["render_modes"]
         if "render_fps" in self.metadata:
             assert (
                 int(np.round(1.0 / self.dt)) == self.metadata["render_fps"]
@@ -115,7 +122,7 @@ class MujocoEnv(gym.Env):
 
     def _initialize_simulation(
         self,
-    ) -> tuple["mujoco.MjModel", "mujoco.MjData"]:
+    ) -> Tuple["mujoco.MjModel", "mujoco.MjData"]:
         """
         Initialize MuJoCo simulation data structures `mjModel` and `mjData`.
         """
@@ -169,14 +176,22 @@ class MujocoEnv(gym.Env):
     def reset(
         self,
         *,
-        seed: int | None = None,
-        options: dict | None = None,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
 
         mujoco.mj_resetData(self.model, self.data)
 
-        ob = self.reset_model()
+        if isinstance(options, dict) and 'noise' in options and self.init_qpos.shape==(24,) and self.init_qvel.shape==(23,):
+            try:
+                ob = self.reset_model_with_noise(qpos_noise=options['noise'][:24], qvel_noise=options['noise'][24:])  # only hopper
+            except AttributeError:
+                raise AttributeError("PRT experiment only uses Humanoid-v4")
+            except ValueError:
+                raise ValueError("Humanoid-v4 defines test cases as 24-dim qpos_noise and 23-dim qvel_noise, totally 47 dimensions")
+        else:
+            ob = self.reset_model()
         info = self._get_reset_info()
 
         if self.render_mode == "human":
@@ -209,7 +224,7 @@ class MujocoEnv(gym.Env):
     # ----------------------------
     def step(
         self, action: NDArray[np.float32]
-    ) -> tuple[NDArray[np.float64], np.float64, bool, bool, dict[str, np.float64]]:
+    ) -> Tuple[NDArray[np.float64], np.float64, bool, bool, Dict[str, np.float64]]:
         raise NotImplementedError
 
     def reset_model(self) -> NDArray[np.float64]:
@@ -219,7 +234,7 @@ class MujocoEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def _get_reset_info(self) -> dict[str, float]:
+    def _get_reset_info(self) -> Dict[str, float]:
         """Function that generates the `info` that is returned during a `reset()`."""
         return {}
 

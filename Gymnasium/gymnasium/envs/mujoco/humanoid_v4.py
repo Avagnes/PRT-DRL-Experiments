@@ -14,10 +14,9 @@ DEFAULT_CAMERA_CONFIG = {
 
 
 def mass_center(model, data):
-    """Calculate center of mass as weighted average: (model.body_mass.T * data.xipos) / sum(model.body_mass)."""
-    num = np.einsum("b,bj->j", model.body_mass, data.xipos)
-    denom = model.body_mass.sum()
-    return (num / denom)[0:2].copy()
+    mass = np.expand_dims(model.body_mass, axis=1)
+    xpos = data.xipos
+    return (np.sum(mass * xpos, axis=0) / np.sum(mass))[0:2].copy()
 
 
 class HumanoidEnv(MujocoEnv, utils.EzPickle):
@@ -176,6 +175,14 @@ class HumanoidEnv(MujocoEnv, utils.EzPickle):
         qvel = self.init_qvel + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nv
         )
+        self.set_state(qpos, qvel)
+
+        observation = self._get_obs()
+        return observation
+
+    def reset_model_with_noise(self, qpos_noise, qvel_noise):
+        qpos = self.init_qpos + qpos_noise
+        qvel = self.init_qvel + qvel_noise
         self.set_state(qpos, qvel)
 
         observation = self._get_obs()

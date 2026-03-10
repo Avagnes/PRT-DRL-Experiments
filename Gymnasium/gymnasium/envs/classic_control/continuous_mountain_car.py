@@ -186,12 +186,15 @@ class Continuous_MountainCarEnv(gym.Env):
         super().reset(seed=seed)
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
-        low, high = utils.maybe_parse_reset_bounds(options, -0.6, -0.4)
-        self.state = np.array([self.np_random.uniform(low=low, high=high), 0])
+        if type(options) is dict and 'state' in options:
+            self.state = options['state']
+        else:
+            low, high = utils.maybe_parse_reset_bounds(options, -0.6, -0.4)
+            self.state = np.array([self.np_random.uniform(low=low, high=high), 0.0])
 
         if self.render_mode == "human":
             self.render()
-        return np.array(self.state, dtype=np.float32), {}
+        return np.array(self.state, dtype=np.float32), {'test_case': self.state}
 
     def _height(self, xs):
         return np.sin(3 * xs) * 0.45 + 0.55

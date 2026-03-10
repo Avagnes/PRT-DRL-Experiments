@@ -5,7 +5,7 @@ permalink: https://perma.cc/C9ZM-652R
 """
 
 import math
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -13,7 +13,7 @@ import gymnasium as gym
 from gymnasium import logger, spaces
 from gymnasium.envs.classic_control import utils
 from gymnasium.error import DependencyNotInstalled
-from gymnasium.vector import AutoresetMode, VectorEnv
+from gymnasium.vector import VectorEnv
 from gymnasium.vector.utils import batch_space
 
 
@@ -117,7 +117,7 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     }
 
     def __init__(
-        self, sutton_barto_reward: bool = False, render_mode: str | None = None
+        self, sutton_barto_reward: bool = False, render_mode: Optional[str] = None
     ):
         self._sutton_barto_reward = sutton_barto_reward
 
@@ -234,15 +234,18 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         super().reset(seed=seed)
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
-        low, high = utils.maybe_parse_reset_bounds(
-            options, -0.05, 0.05  # default low
-        )  # default high
-        self.state = self.np_random.uniform(low=low, high=high, size=(4,))
+        if type(options) is dict and 'state' in options:
+            self.state = options['state']
+        else:
+            low, high = utils.maybe_parse_reset_bounds(
+                options, -0.05, 0.05  # default low
+            )  # default high
+            self.state = self.np_random.uniform(low=low, high=high, size=(4,))
         self.steps_beyond_terminated = None
 
         if self.render_mode == "human":
             self.render()
-        return np.array(self.state, dtype=np.float32), {}
+        return np.array(self.state, dtype=np.float32), {'test_case': self.state}
 
     def render(self):
         if self.render_mode is None:
@@ -355,14 +358,13 @@ class CartPoleVectorEnv(VectorEnv):
     metadata = {
         "render_modes": ["rgb_array"],
         "render_fps": 50,
-        "autoreset_mode": AutoresetMode.NEXT_STEP,
     }
 
     def __init__(
         self,
         num_envs: int = 1,
         max_episode_steps: int = 500,
-        render_mode: str | None = None,
+        render_mode: Optional[str] = None,
         sutton_barto_reward: bool = False,
     ):
         self._sutton_barto_reward = sutton_barto_reward
@@ -419,7 +421,7 @@ class CartPoleVectorEnv(VectorEnv):
 
     def step(
         self, action: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
         assert self.action_space.contains(
             action
         ), f"{action!r} ({type(action)}) invalid"
